@@ -15,23 +15,82 @@ warnings.filterwarnings("ignore")
 
 class FaceDetection:
 
+    """
+    A class for the multiprocessing face recognition pipeline.
+    ...
+    Attributes
+    ----------
+    model : str
+        String containing the path to the model
+    path : str
+        String containing the path to the images
+    mode : int
+        Mode value to calculate the rolling mode of the predicted names
+    thresh : float
+        threhold value for indicating the threshold within which the L2 distance is found acceptable to recognize a person's identity
+    src: int/str
+        video source, if 0 is given then it reads the video frames from the webcam, if string of a video path is given then the video frames are read
+    mp_face_detection: object
+        Mediapipe object for its solutions class
+    detector: object
+        Medipipe's face detection object to detect faces present in a given image
+    recognition: object
+        Tensorflow model object for a trained face embeddings model
+    capture: object
+        OpenCV's video capturing object
+    width: int
+        width of the captured video
+    height: int
+        height of the captured video
+    cTime: int/object
+        current time
+    pTime: int/object
+        previous time
+    images: list
+        list of images present in the image directory path provided
+    names: list
+        list of names parsed by removing the .jpg/png/jpeg extensions from the filenames in the images list
+    label: list
+        list containing the labels predicted for each frame of the video
+    x: int
+        x coordinate of the bounding box
+    y: int
+        y coordinate of the bounding box
+    w: int
+        width of the bounding box
+    h: int 
+        height of the bounding box
+    detected_faces: list
+        list containing the cropped detected faces from the image
+    embeddings: numpy.ndarray
+        a numpy array containing the face embeddings of all the detected faces from the list of images, these embeddings will serve as a smallscale database
+    Methods
+    -------
+    detection(img,faces):
+        Returns the cropped part of the detected face which is normalized and resized to 160x160
+    face_detection(image):
+        Returns the cropped image using the MTCNN face detection neural network it uses the detection method in the class to retrieve the cropped image
+    recognizeFaces():
+        Multithreaded function which concurrently runs and performs the face recognition using the loaded model
+    display():
+        Displays the recognized face label and the bounding box to localize the image
+    """
+    
     def __init__(self,model,path,mode,thresh=1.5,src=0):
 
         # class attributes related to the model and the video
         self.src = src
         self.mp_face_detection = mp.solutions.face_detection
-        self.model = self.mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.7)
+        self.detector = self.mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.7)
         self.recognition = tf.keras.models.load_model(model)
         self.capture = cv2.VideoCapture(src)
         self.width = self.capture.get(cv2.CAP_PROP_FRAME_WIDTH)
         self.height = self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        self._, self.img = self.capture.read()
+        _, self.img = self.capture.read()
         self.cTime = 0 
         self.pTime = 0
-        self.path = path
-        self.images = os.listdir(self.path)
-        self.names = map(lambda x: x.split('.')[0], self.images)
-        self.names = list(self.names)
+        self.images = os.listdir(path)
+        self.names = list(map(lambda x: x.split('.')[0], self.images))
         self.label = []
         self.mode = mode
         self.thresh = thresh
@@ -43,20 +102,18 @@ class FaceDetection:
         self.detected_faces = []
 
         for image in self.images:
-            img = self.face_detection(os.path.join(self.path,image))
+            img = self.face_detection(os.path.join(path,image))
             self.detected_faces.append(img)
 
         self.embeddings = self.recognition.predict(np.array(self.detected_faces))
 
-        # Thread for running the CNN classification of each video frame
-        self.t = Thread(target=self.detectFaces)
+        # Thread for running the Face Recognition Concurrently
+        self.t = Thread(target=self.recognizeFaces)
         self.t.daemon = True
         self.t.start()
 
     def detection(self,img, faces):
         for face in faces:
-            x1,y1 = face['keypoints']['left_eye']
-            x2,y2 = face['keypoints']['right_eye']
             x,y,w,h = face['box']
         img = img[y:y+h,x:x+w,:]
         img = img/255.
@@ -71,12 +128,8 @@ class FaceDetection:
         img = self.detection(img, faces)
         return img
 
-    def euclidean(self,x1,y1,x2,y2):
-        return ((x1-x2)**2 + (y1-y2)**2)**0.5
-
-    # Thread function to detect faces in each video frame using haar cascades
     # Heavy video processing functionality should be defined here
-    def detectFaces(self):
+    def recognizeFaces(self):
 
         while True:
             img = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
@@ -111,10 +164,10 @@ class FaceDetection:
             try:
                 label = st.mode(self.label[-self.mode:])[0][0]
                 (width, height),b = cv2.getTextSize(label, font, fontScale, thickness)
-            except:
+            except IndexError:
                 (width, height),b = cv2.getTextSize(label, font, fontScale, thickness)
 
-            results = self.model.process(self.img)
+            results = self.detector.process(self.img)
             if results.detections:
                 for detection in results.detections:
                     self.x = int(detection.location_data.relative_bounding_box.xmin*self.width)
@@ -138,9 +191,8 @@ class FaceDetection:
 
 if __name__ == '__main__':
     
-    video = FaceDetection('models/face_embed.h5','images',7,1.6,0)
+    video = FaceDetection(model='models/face_embed.h5',path='images',mode=7,thresh=1.6,src=0)
     try:
-        video.display((0,0,0))
+        video.display(box_color=(0,0,0))
     except Exception as e:
         print(e)
-        pass
