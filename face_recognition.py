@@ -13,7 +13,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-class FaceDetection:
+class FaceRecognition:
 
     """
     A class for the multiprocessing face recognition pipeline.
@@ -191,7 +191,7 @@ class FaceDetection:
 
 if __name__ == '__main__':
     
-    video = FaceDetection(model='models/face_embed.h5',path='images',mode=7,thresh=1.6,src=0)
+    video = FaceRecognition(model='models/face_embed.h5',path='images',mode=7,thresh=1.6,src=0)
     try:
         video.display(box_color=(0,0,0))
     except Exception as e:
