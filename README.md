@@ -27,8 +27,6 @@ Due to github storage restrictions the model cannot be uploaded to the repositor
     - Else the person in the input image is not present in the database
 5. Use the OpenCV utilities to tag the person in the image
 
-![This is an image](https://www.researchgate.net/publication/282863610/figure/fig1/AS:669508570214408@1536634690438/Processing-pipeline-of-face-recognition.jpg)
-
 ## Result
 
 https://user-images.githubusercontent.com/38568261/229374265-7722f99d-d34b-4668-8bd8-c4306c63cc2e.mp4
