@@ -30,10 +30,6 @@ class FaceRecognition:
         threhold value for indicating the threshold within which the L2 distance is found acceptable to recognize a person's identity
     src: int/str
         video source, if 0 is given then it reads the video frames from the webcam, if string of a video path is given then the video frames are read
-    mp_face_detection: object
-        Mediapipe object for its solutions class
-    detector: object
-        Medipipe's face detection object to detect faces present in a given image
     recognition: object
         Tensorflow model object for a trained face embeddings model
     capture: object
@@ -80,8 +76,6 @@ class FaceRecognition:
 
         # class attributes related to the model and the video
         self.src = src
-        self.mp_face_detection = mp.solutions.face_detection
-        self.detector = self.mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.7)
         self.recognition = tf.keras.models.load_model(model)
         self.capture = cv2.VideoCapture(src)
         self.width = self.capture.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -166,17 +160,19 @@ class FaceRecognition:
                 (width, height),b = cv2.getTextSize(label, font, fontScale, thickness)
             except IndexError:
                 (width, height),b = cv2.getTextSize(label, font, fontScale, thickness)
+            
+            with mp.solutions.face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
 
-            results = self.detector.process(self.img)
-            if results.detections:
-                for detection in results.detections:
-                    self.x = int(detection.location_data.relative_bounding_box.xmin*self.width)
-                    self.y = int(detection.location_data.relative_bounding_box.ymin*self.height)
-                    self.w = int(detection.location_data.relative_bounding_box.width*self.width)
-                    self.h = int(detection.location_data.relative_bounding_box.height*self.height)
-                    cv2.rectangle(self.img, (self.x, self.y), (self.x+self.w, self.y+self.h), box_color, 2)  
-                    cv2.rectangle(self.img, (self.x, self.y-height), (self.x+width, self.y), box_color, -5)
-                    cv2.putText(self.img, label, (self.x,self.y), font, fontScale, color, thickness, cv2.LINE_AA)
+                results = face_detection.process(self.img)
+                if results.detections:
+                    for detection in results.detections:
+                        self.x = int(detection.location_data.relative_bounding_box.xmin*self.width)
+                        self.y = int(detection.location_data.relative_bounding_box.ymin*self.height)
+                        self.w = int(detection.location_data.relative_bounding_box.width*self.width)
+                        self.h = int(detection.location_data.relative_bounding_box.height*self.height)
+                        cv2.rectangle(self.img, (self.x, self.y), (self.x+self.w, self.y+self.h), box_color, 2)  
+                        cv2.rectangle(self.img, (self.x, self.y-height), (self.x+width, self.y), box_color, -5)
+                        cv2.putText(self.img, label, (self.x,self.y), font, fontScale, color, thickness, cv2.LINE_AA)
 
             self.cTime = time.time()
             fps = 1 / (self.cTime - self.pTime)
